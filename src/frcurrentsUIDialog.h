@@ -60,9 +60,12 @@
 #include <wx/txtstrm.h>
 #include <wx/wfstream.h>
 #include <wx/statbox.h>
+#include <wx/event.h>
+#include "ocpn_plugin.h"
 
-#define ID_SOMETHING 2001
-#define ID_SOMETHING_ELSE 2002
+
+enum { ID_DASH_PREFS = 999, ID_DASH_RESIZE };
+
 
 using namespace std;
 
@@ -192,8 +195,20 @@ public:
   wxString m_FolderSelected;
   double m_coeff;
   double m_jumpLat, m_jumpLon;
+  
+ // void OnMouseEvent(wxMouseEvent& event);
+  /*
+  wxPoint m_resizeStartPoint;
+  wxSize m_resizeStartSize;
+  bool m_binResize;
+  bool m_binResize2;
+  int eventid;*/
 
 #ifdef __ANDROID__
+  void OnContextMenu(wxContextMenuEvent& event);
+  void OnContextMenuSelect(wxCommandEvent& event);
+
+
   void OnMouseEvent(wxMouseEvent& event);
   wxPoint m_resizeStartPoint;
   wxSize m_resizeStartSize;
@@ -201,7 +216,7 @@ public:
   bool m_binResize2;
 
   void OnPopupClick(wxCommandEvent& evt);
-  void OnDLeftClick(wxMouseEvent& event);
+  void OnRightClick(wxMouseEvent& event);
 
 #endif
 

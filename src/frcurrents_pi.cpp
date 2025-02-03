@@ -137,8 +137,8 @@ int frcurrents_pi::Init(void) {
         frcurrents_TOOL_POSITION, 0, this);
 #else
     m_leftclick_tool_id = InsertPlugInTool(
-        "", _img_frcurrents, _img_frcurrents, wxITEM_CHECK, _("frcurrents"),
-       "", NULL, frcurrents_TOOL_POSITION, 0, this);
+        "", _img_frcurrents, _img_frcurrents, wxITEM_CHECK, _("frcurrents"), "",
+        NULL, frcurrents_TOOL_POSITION, 0, this);
 #endif
   }
   return (WANTS_OVERLAY_CALLBACK | WANTS_OPENGL_OVERLAY_CALLBACK |
@@ -297,6 +297,7 @@ void frcurrents_pi::OnToolbarToolCallback(int id) {
         new frcurrentsOverlayFactory(*m_pfrcurrentsDialog);
     m_pfrcurrentsOverlayFactory->SetParentSize(m_display_width,
                                                m_display_height);
+
   }
 
   // Toggle frcurrents overlay display
@@ -377,6 +378,8 @@ bool frcurrents_pi::RenderGLOverlay(wxGLContext *pcontext,
 void frcurrents_pi::SetCursorLatLon(double lat, double lon) {
   if (m_pfrcurrentsDialog) m_pfrcurrentsDialog->SetCursorLatLon(lat, lon);
 }
+
+
 
 bool frcurrents_pi::LoadConfig(void) {
   wxFileConfig *pConf = (wxFileConfig *)m_pconfig;

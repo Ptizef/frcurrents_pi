@@ -101,8 +101,8 @@ enum {
   BACKWARD_TEN_MINUTES_STEP = -600,
   BACKWARD_ONE_MINUTES_STEP = -60,
   FIRST_DAY_IN_MONTH = 1,
-  FIRST_MONTH_IN_YEAR = 0,   //  base 0
-  LAST_MONTH_IN_YEAR = 11    //  to 11
+  FIRST_MONTH_IN_YEAR = 0,  //  base 0
+  LAST_MONTH_IN_YEAR = 11   //  to 11
 };
 
 // Handle to DLL
@@ -152,9 +152,11 @@ frcurrentsUIDialog::frcurrentsUIDialog(wxWindow* parent, frcurrents_pi* ppi)
   pPlugIn = ppi;
 
   //  Set date picker's limits from 1st January 1980 to 31th December 2037
-  //  to prevent crashes beyong time_t 32 bits capacity overtake during jan 2038.
-  m_datePicker1->SetRange(wxDateTime((time_t)1, static_cast<wxDateTime::Month>(0), 1970),
-    wxDateTime((time_t)31, static_cast<wxDateTime::Month>(11), 2037));
+  //  to prevent crashes beyong time_t 32 bits capacity overtake during jan
+  //  2038.
+  m_datePicker1->SetRange(
+      wxDateTime((time_t)1, static_cast<wxDateTime::Month>(0), 1970),
+      wxDateTime((time_t)31, static_cast<wxDateTime::Month>(11), 2037));
 
 #ifdef __ANDROID__
 
@@ -259,7 +261,7 @@ wxPoint g_mouse_pos_screen;
 
 void frcurrentsUIDialog::OnPopupClick(wxCommandEvent& evt) {
   switch (evt.GetId()) {
-    case ID_SOMETHING:
+    case ID_DASH_RESIZE:
       m_binResize = true;
       break;
       // case ID_SOMETHING_ELSE:
@@ -267,21 +269,24 @@ void frcurrentsUIDialog::OnPopupClick(wxCommandEvent& evt) {
   }
 }
 
-void frcurrentsUIDialog::OnDLeftClick(wxMouseEvent& event) {
+void frcurrentsUIDialog::OnRightClick(wxMouseEvent& event) {
   wxMenu mnu;
-  mnu.Append(ID_SOMETHING, "Resize...");
+  mnu.Append(ID_DASH_RESIZE, "Resize...");
   // mnu.Append(ID_SOMETHING_ELSE, "Do something else");
   mnu.Connect(wxEVT_COMMAND_MENU_SELECTED,
               wxCommandEventHandler(frcurrentsUIDialog::OnPopupClick), NULL,
-              this);
+              g_Window);
   PopupMenu(&mnu);
 }
 
 void frcurrentsUIDialog::OnMouseEvent(wxMouseEvent& event) {
   if (m_binResize) {
     wxSize currentSize = g_Window->GetSize();
+    double aRatio = (double)currentSize.y / (double)currentSize.x;
+
     wxSize par_size = GetOCPNCanvasWindow()->GetClientSize();
-    wxPoint par_pos = g_Window->GetPosition();
+    wxPoint par_pos = GetOCPNCanvasWindow()->GetPosition();
+
     if (event.LeftDown()) {
       m_resizeStartPoint = event.GetPosition();
       m_resizeStartSize = currentSize;
@@ -294,37 +299,40 @@ void frcurrentsUIDialog::OnMouseEvent(wxMouseEvent& event) {
 
         wxSize dragSize = m_resizeStartSize;
 
-        dragSize.y = p.y;  //  - m_resizeStartPoint.y;
-        dragSize.x = p.x;  //  - m_resizeStartPoint.x;
+        dragSize.y += p.y - m_resizeStartPoint.y;
+        dragSize.x += p.x - m_resizeStartPoint.x;
         ;
-        /*
+
         if ((par_pos.y + dragSize.y) > par_size.y)
-            dragSize.y = par_size.y - par_pos.y;
+          dragSize.y = par_size.y - par_pos.y;
 
         if ((par_pos.x + dragSize.x) > par_size.x)
-            dragSize.x = par_size.x - par_pos.x;
-*/
+          dragSize.x = par_size.x - par_pos.x;
+
+        /// vertical
+        // dragSize.x = dragSize.y / aRatio;
+
         // not too small
         dragSize.x = wxMax(dragSize.x, 150);
         dragSize.y = wxMax(dragSize.y, 150);
 
-        int x = wxMax(0, m_resizeStartPoint.x);
-        int y = wxMax(0, m_resizeStartPoint.y);
-        int xmax = ::wxGetDisplaySize().x - GetSize().x;
-        x = wxMin(x, xmax);
-        int ymax =
-            ::wxGetDisplaySize().y - (GetSize().y);  // Some fluff at the bottom
-        y = wxMin(y, ymax);
-
-        g_Window->Move(x, y);
+        g_Window->SetSize(dragSize);
       }
+
       if (event.LeftUp()) {
         wxPoint p = event.GetPosition();
 
         wxSize dragSize = m_resizeStartSize;
 
-        dragSize.y = p.y;
-        dragSize.x = p.x;
+        dragSize.y += p.y - m_resizeStartPoint.y;
+        dragSize.x += p.x - m_resizeStartPoint.x;
+        ;
+
+        if ((par_pos.y + dragSize.y) > par_size.y)
+          dragSize.y = par_size.y - par_pos.y;
+
+        if ((par_pos.x + dragSize.x) > par_size.x)
+          dragSize.x = par_size.x - par_pos.x;
 
         // not too small
         dragSize.x = wxMax(dragSize.x, 150);
@@ -352,7 +360,113 @@ void frcurrentsUIDialog::OnMouseEvent(wxMouseEvent& event) {
   }
 }
 
+void frcurrentsUIDialog::OnContextMenuSelect(wxCommandEvent& event) {
+  //
+  switch (event.GetId()) {
+    case ID_DASH_RESIZE: {
+      /*
+                  for( unsigned int i=0; i<m_ArrayOfInstrument.size(); i++ ) {
+                      DashboardInstrument* inst =
+         m_ArrayOfInstrument.Item(i)->m_pInstrument; inst->Hide();
+                  }
+      */
+      m_binResize = true;
+      wxMessageBox("here");
+
+      return;
+    }
+  }
+  pPlugIn->SaveConfig();
+}
+
+void frcurrentsUIDialog::OnContextMenu(wxContextMenuEvent& event) {
+  wxMenu* contextMenu = new wxMenu();
+  wxFont* pf = OCPNGetFont(_T("Menu"), 0);
+
+  // add stuff
+  wxMenuItem* item1 =
+      new wxMenuItem(contextMenu, ID_DASH_PREFS, _("Preferences..."));
+  item1->SetFont(*pf);
+  contextMenu->Append(item1);
+
+  wxMenuItem* item2 =
+      new wxMenuItem(contextMenu, ID_DASH_RESIZE, _("Resize..."));
+  item2->SetFont(*pf);
+  contextMenu->Append(item2);
+
+  PopupMenu(contextMenu);
+  delete contextMenu;
+}
 #endif  // End of Android functions for move/resize
+
+/*
+
+void frcurrentsUIDialog::OnMouseEvent(wxMouseEvent& event) {
+  wxSize currentSize = this->GetSize();
+  double aRatio = (double)currentSize.y / (double)currentSize.x;
+
+  wxSize par_size = GetOCPNCanvasWindow()->GetClientSize();
+  wxPoint par_pos = this->GetPosition();
+
+  if (event.LeftDown()) {
+    m_resizeStartPoint = event.GetPosition();
+    m_resizeStartSize = currentSize;
+    m_binResize2 = true;
+  }
+
+  if (m_binResize2) {
+    if (event.Dragging()) {
+      wxPoint p = event.GetPosition();
+
+      wxSize dragSize = m_resizeStartSize;
+
+      dragSize.y += p.y - m_resizeStartPoint.y;
+      dragSize.x += p.x - m_resizeStartPoint.x;
+      ;
+
+      if ((par_pos.y + dragSize.y) > par_size.y)
+        dragSize.y = par_size.y - par_pos.y;
+
+      if ((par_pos.x + dragSize.x) > par_size.x)
+        dragSize.x = par_size.x - par_pos.x;
+
+      /// vertical
+      // dragSize.x = dragSize.y / aRatio;
+
+      // not too small
+      dragSize.x = wxMax(dragSize.x, 150);
+      dragSize.y = wxMax(dragSize.y, 150);
+
+      this->SetSize(dragSize);
+    }
+
+    if (event.LeftUp()) {
+      wxPoint p = event.GetPosition();
+
+      wxSize dragSize = m_resizeStartSize;
+
+      dragSize.y += p.y - m_resizeStartPoint.y;
+      dragSize.x += p.x - m_resizeStartPoint.x;
+      ;
+
+      if ((par_pos.y + dragSize.y) > par_size.y)
+        dragSize.y = par_size.y - par_pos.y;
+
+      if ((par_pos.x + dragSize.x) > par_size.x)
+        dragSize.x = par_size.x - par_pos.x;
+
+      // not too small
+      dragSize.x = wxMax(dragSize.x, 150);
+      dragSize.y = wxMax(dragSize.y, 150);
+
+      this->SetSize(dragSize);
+
+      m_binResize = false;
+      m_binResize2 = false;
+    }
+  }
+}
+  */
 
 void frcurrentsUIDialog::SetCursorLatLon(double lat, double lon) {
   m_cursor_lon = lon;
@@ -589,9 +703,7 @@ void frcurrentsUIDialog::SetCorrectHWSelection() {
 }
 
 void frcurrentsUIDialog::OnDateSelChanged(wxDateEvent& event) {
-
-  if (event.GetDate().IsSameDate(m_SelectedDate))
-    return;
+  if (event.GetDate().IsSameDate(m_SelectedDate)) return;
 
   //  calc new date and apply
   //  get days, months & Year
@@ -603,14 +715,15 @@ void frcurrentsUIDialog::OnDateSelChanged(wxDateEvent& event) {
   int newYear = event.GetDate().GetYear();
 
   //  years scrolled or changed
-  if (m_SelectedDate.GetYear() != newYear)
-    m_SelectedDate.SetYear(newYear);
+  if (m_SelectedDate.GetYear() != newYear) m_SelectedDate.SetYear(newYear);
 
   //   months scrolled or changed
   else if (currentMonth != newMonth) {
-    if (newMonth == FIRST_MONTH_IN_YEAR && currentMonth == LAST_MONTH_IN_YEAR)  // 1 year later
+    if (newMonth == FIRST_MONTH_IN_YEAR &&
+        currentMonth == LAST_MONTH_IN_YEAR)  // 1 year later
       currentMonth = newMonth - 1;
-    else if (newMonth == LAST_MONTH_IN_YEAR && currentMonth == FIRST_MONTH_IN_YEAR)  // 1 year earlier
+    else if (newMonth == LAST_MONTH_IN_YEAR &&
+             currentMonth == FIRST_MONTH_IN_YEAR)  // 1 year earlier
       currentMonth = newMonth + 1;
 
     if (newMonth > currentMonth)
@@ -620,13 +733,15 @@ void frcurrentsUIDialog::OnDateSelChanged(wxDateEvent& event) {
   }
   //   days scrolled or changed
   else if (currentDay != newDay) {
-    //find last day of the month
+    // find last day of the month
     int feb = wxDateTime::IsLeapYear(m_SelectedDate.GetYear()) ? 29 : 28;
-    int lastDays[] = { 31,feb,31,30,31,30,31,31,30,31,30,31 };
+    int lastDays[] = {31, feb, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31};
     int lastDaysINMonth = lastDays[currentMonth];
-    if (newDay == FIRST_DAY_IN_MONTH && currentDay == lastDaysINMonth)      // 1 month later
+    if (newDay == FIRST_DAY_IN_MONTH &&
+        currentDay == lastDaysINMonth)  // 1 month later
       currentDay = newDay - 1;
-    else if (newDay == lastDaysINMonth && currentDay == FIRST_DAY_IN_MONTH) // 1 month earlier
+    else if (newDay == lastDaysINMonth &&
+             currentDay == FIRST_DAY_IN_MONTH)  // 1 month earlier
       currentDay = newDay + 1;
 
     if (newDay > currentDay)
@@ -637,7 +752,7 @@ void frcurrentsUIDialog::OnDateSelChanged(wxDateEvent& event) {
   //   update picker & save the new selected date ticks
   m_datePicker1->SetValue(m_SelectedDate);
   bool later = m_SelectedDate.GetTicks() > selectedDateTicks;
-//  end new date
+  //  end new date
 
   m_staticText2->SetLabel("  ");
   m_staticText211->SetLabel("  ");
@@ -656,8 +771,7 @@ void frcurrentsUIDialog::OnDateSelChanged(wxDateEvent& event) {
   }
   if (m_bUseBM) {
     CalcLW(i);
-  }
-  else {
+  } else {
     CalcHW(i);
   }
 
@@ -667,34 +781,34 @@ void frcurrentsUIDialog::OnDateSelChanged(wxDateEvent& event) {
   m_textCtrlCoefficient->SetValue("Coeff: " + s_coeff);
   GetCurrentsData(s);
 
-    button_id = 6;     //  in another days as today, set to HW/LW
+  button_id = 6;  //  in another days as today, set to HW/LW
 
-    if (later)
-      m_myChoice = 0;       // first HW/LW of the later day
-    else {
-      int c = m_choice2->GetCount();
-      m_myChoice = c - 1;     // last HW/LW of the earlier day
-    }
+  if (later)
+    m_myChoice = 0;  // first HW/LW of the later day
+  else {
+    int c = m_choice2->GetCount();
+    m_myChoice = c - 1;  // last HW/LW of the earlier day
+  }
 
-    m_choice2->SetSelection(m_myChoice);
+  m_choice2->SetSelection(m_myChoice);
 
-    m_dt.ParseDateTime(m_choice2->GetString(m_myChoice));
-    m_dt.Subtract(wxTimeSpan::Hours(6));
-    m_dt.Add(wxTimeSpan::Hours(button_id));
-    m_staticText2->SetLabel(m_dt.Format("%a %d %b %Y %H:%M"));
+  m_dt.ParseDateTime(m_choice2->GetString(m_myChoice));
+  m_dt.Subtract(wxTimeSpan::Hours(6));
+  m_dt.Add(wxTimeSpan::Hours(button_id));
+  m_staticText2->SetLabel(m_dt.Format("%a %d %b %Y %H:%M"));
 
-    if (m_bUseBM)
-      m_staticText211->SetLabel(label_lw[button_id]);
-    else
-      m_staticText211->SetLabel(label_array[button_id]);
+  if (m_bUseBM)
+    m_staticText211->SetLabel(label_lw[button_id]);
+  else
+    m_staticText211->SetLabel(label_array[button_id]);
 
-    //   prepare to a further usage of the 'next' or 'previous' buttons
-    next_id = button_id;
-    m_bNext = false;
-    m_bPrev = false;
-    m_bChooseTide = true;
+  //   prepare to a further usage of the 'next' or 'previous' buttons
+  next_id = button_id;
+  m_bNext = false;
+  m_bPrev = false;
+  m_bChooseTide = true;
 
-    RequestRefresh(pParent);
+  RequestRefresh(pParent);
 }
 
 void frcurrentsUIDialog::OnPortChanged(wxCommandEvent& event) {
@@ -1020,20 +1134,25 @@ int frcurrentsUIDialog::FindPortIDUsingChoice(wxString inPortName) {
 }
 
 void frcurrentsUIDialog::OnSelectData(wxCommandEvent& event) {
-#ifndef __OCPN__ANDROID__
+#ifndef __ANDROID__
   wxDirDialog* d =
       new wxDirDialog(this, _("Choose a directory"), "", 0, wxDefaultPosition);
   if (d->ShowModal() == wxID_OK) {
     m_dirPicker1->SetValue(d->GetPath());
+
     m_FolderSelected = m_dirPicker1->GetValue();
     pPlugIn->m_CopyFolderSelected = m_FolderSelected;
   }
 #else
-  wxString tc =
-      "/storage/emulated/0/Android/data/org.opencpn.opencpn/files/tcdata";
-  m_dirPicker1->SetValue(tc);
-  m_FolderSelected = tc;
-  pPlugIn->m_CopyFolderSelected = m_FolderSelected;
+  g_Window = this;
+  wxString dir_spec;
+  int response = PlatformDirSelectorDialog(
+      g_Window, &dir_spec, _("Choose Harmonics Directory"), m_dirPicker1->GetValue());
+  if (response == wxID_OK) {
+    m_dirPicker1->SetValue(dir_spec);
+    m_FolderSelected = dir_spec;
+    pPlugIn->m_CopyFolderSelected = m_FolderSelected;
+  }
 #endif
 
   LoadTCMFile();
@@ -1196,7 +1315,7 @@ void frcurrentsUIDialog::SetTimeFactors() {
 
   // m_graphday = this_gmt;
 
-  time_t  t_time_gmt = m_graphday.GetTicks();
+  time_t t_time_gmt = m_graphday.GetTicks();
 
   time_t ttNow = this_now.GetTicks();
   time_t tt_at_station =
@@ -1205,8 +1324,7 @@ void frcurrentsUIDialog::SetTimeFactors() {
   if (t_time_gmt > tt_at_station) {
     wxTimeSpan dt((t_time_gmt - tt_at_station) / 3600, 0, 0, 0);
     m_graphday.Subtract(dt);
-  }
-  else if (t_time_gmt < tt_at_station) {
+  } else if (t_time_gmt < tt_at_station) {
     wxTimeSpan dt((tt_at_station - t_time_gmt) / 3600, 0, 0, 0);
     m_graphday.Add(dt);
   }
@@ -1405,7 +1523,9 @@ void frcurrentsUIDialog::CalcHW(int PortCode) {
         ptcmgr->GetHightOrLowTide(tt, BACKWARD_TEN_MINUTES_STEP,
                                   BACKWARD_ONE_MINUTES_STEP, tcv[i], wt,
                                   pIDX->IDX_rec_num, tcvalue, tctime);
-        if (tctime > tt_localtz && tctime < tt_nextlocaltzday) {  // Only show events visible in graphic
+        if (tctime > tt_localtz &&
+            tctime <
+                tt_nextlocaltzday) {  // Only show events visible in graphic
           // presently shown
           wxDateTime tcd;  // write date
           wxString s, s1, s2;
@@ -1511,7 +1631,6 @@ void frcurrentsUIDialog::CalcLW(int PortCode) {
   ptcmgr->GetTideFlowSens(tt_localtz, BACKWARD_TEN_MINUTES_STEP,
                           pIDX->IDX_rec_num, tcv[0], val, wt);
 
-
   for (i = 0; i < 26; i++) {
     int tt = tt_localtz + (i * FORWARD_ONE_HOUR_STEP);
 
@@ -1528,8 +1647,9 @@ void frcurrentsUIDialog::CalcLW(int PortCode) {
         ptcmgr->GetHightOrLowTide(tt, BACKWARD_TEN_MINUTES_STEP,
                                   BACKWARD_ONE_MINUTES_STEP, tcv[i], wt,
                                   pIDX->IDX_rec_num, tcvalue, tctime);
-        if (tctime > tt_localtz && tctime < tt_nextlocaltzday) {  // Only show events
-                                    // visible in graphic
+        if (tctime > tt_localtz &&
+            tctime < tt_nextlocaltzday) {  // Only show events
+                                           // visible in graphic
           // presently shown
           wxDateTime tcd;  // write date
           wxString s, s1, s2;
@@ -1846,7 +1966,7 @@ bool frcurrentsUIDialog::LoadStandardPorts() {
 
       // end for
     }  // end for
-  }    // end for
+  }  // end for
 
   int c = my_ports.size();
   //	wxString s = wxString::Format("%i", c);
@@ -1996,7 +2116,6 @@ void frcurrentsUIDialog::OnAreaSelected(wxCommandEvent& event) {
   m_choice1->SetSelection(0);
 
   OnPortListed();
-
 }
 
 void frcurrentsUIDialog::GetCurrentsData(wxString areaFolder) {
@@ -2068,7 +2187,6 @@ void frcurrentsUIDialog::GetCurrents(wxString dirname, wxString filename) {
     m_button4->SetLabel(_("HW-6"));
     m_button6->SetLabel(_("HW+6"));
   }
-
 
   wxString filePort;
   // wxMessageBox(tidePort);
@@ -2424,7 +2542,7 @@ void frcurrentsUIDialog::OnPrev(wxCommandEvent& event) {
         next_id = 12;
         m_myChoice--;
         m_choice2->SetSelection(m_myChoice);
-      } 
+      }
       if (m_myChoice == 0) {
         m_bAtLastChoice = true;
       }
